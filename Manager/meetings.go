@@ -84,8 +84,13 @@ func initializeAllMeetings() {
 	//load json file
 	meetingsFile, err := os.Open("meetingTimes.json")
 	if err != nil {
-		log.Fatal(err)
+		meetingsFile, err = os.Create("meetingTimes.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		AddMeeting("Dummy Session; Jan 1 1970, 00:00 UTC; Testing")
 	}
+
 	//Read file into a big slice of bytes
 	timeData, err := ioutil.ReadAll(meetingsFile)
 	if err != nil {
@@ -150,10 +155,12 @@ func sortMeetingsByTime() {
 func ShowAllMeetings() string {
 	var output string
 	for k, v := range allMeetings {
-		output += v.toString()
-		output += "Index: "
-		output += strconv.Itoa(k)
-		output += "\n\n"
+		if k != 0 {
+			output += v.toString()
+			output += "Index: "
+			output += strconv.Itoa(k)
+			output += "\n\n"
+		}
 	}
 	return output
 }
