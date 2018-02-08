@@ -270,7 +270,6 @@ func rollBasicDice(numDice, typeDice int) ([]int, int, error) {
 			sort.Ints(resultsOfDice)
 		} else {
 			sort.Sort(sort.Reverse(sort.IntSlice(resultsOfDice)))
-			fmt.Println(resultsOfDice)
 		}
 		return resultsOfDice, total, err
 	}
@@ -328,6 +327,7 @@ func formatResults(dice []int, rT int) string {
 		output += strconv.Itoa(total)
 	case 2:
 		output += "["
+
 		for _, die := range dice {
 			var numbString string
 			switch comparator {
@@ -340,26 +340,31 @@ func formatResults(dice []int, rT int) string {
 			case ">>":
 				if die <= comparand {
 					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
 					numbString = strconv.Itoa(die)
 				}
 			case "<=":
 				if die > comparand {
 					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
 					numbString = strconv.Itoa(die)
 				}
 			case "<<":
 				if die >= comparand {
 					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
 					numbString = strconv.Itoa(die)
 				}
 			case "==":
 				if die != comparand {
 					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
 					numbString = strconv.Itoa(die)
 				}
 			}
 			output += numbString
 			output += ","
+			fmt.Println(output)
 		}
 		output = strings.TrimSuffix(output, ",")
 		output += "]"
@@ -405,6 +410,12 @@ func formatResults(dice []int, rT int) string {
 		temp := strings.Split(output, "=")
 		output = temp[0]
 		afterEquals = "=" + temp[1]
+	}
+	if strings.Contains(output, "giving") {
+		temp := strings.Split(output, "giving")
+		temp[0] += "giving"
+		output = temp[0]
+		afterEquals = temp[1]
 	}
 	switch minMaxFlag {
 	case "mM":
