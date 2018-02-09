@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/githubname/RpgManager"
+	"github.com/haltermak/RpgManager/Manager"
 	"os"
 	"os/signal"
 	"strconv"
