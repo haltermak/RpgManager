@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/githubname/RpgManager"
+	"github.com/haltermak/RpgManager/Manager"
 	"os"
 	"os/signal"
 	"strconv"
@@ -75,6 +75,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// If the message is "pong" reply with "Ping!"
 	if m.Content == "pong" {
 		s.ChannelMessageSend(m.ChannelID, "Ping!")
+	}
+
+	if strings.HasPrefix(m.Content, "/shutDown") && m.Author.Username == "CaptainJesus" {
+		s.Close()
+		os.Exit(0)
 	}
 
 	if strings.HasPrefix(m.Content, "/roll ") || strings.HasPrefix(m.Content, "/r ") {

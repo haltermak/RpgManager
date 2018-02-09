@@ -18,12 +18,22 @@ import (
 
 //Initializes manager and asks what do next
 var allMeetings map[int]Meeting
+var timeZones map[string]*time.Location
 
 const timeStamp = "Jan _2 2006, 15:04 MST"
 
 func StartMeetings() {
 	allMeetings = make(map[int]Meeting)
+	timeZones = make(map[string]*time.Location)
+	var err error
+	timeZones["PST"], err = time.LoadLocation("America/Los_Angeles")
+	timeZones["CEST"], err = time.LoadLocation("Europe/Berlin")
+	timeZones["MST"], err = time.LoadLocation("America/Phoenix")
+	if err != nil {
+		fmt.Println(err)
+	}
 	initializeAllMeetings()
+
 }
 
 //Loads file representing meeting times and reads off the one occuring the soonest in the future. It then prompts if the user would like to see more.
@@ -56,6 +66,7 @@ func (m Meeting) toString() string {
 	output += "Meeting occurs/occured on: "
 	//output += m.DateTime.Format(timeStamp)
 	output += m.DateTime.UTC().Format(timeStamp)
+	fmt.Println(m.DateTime.Zone())
 	output += "\n"
 	output += "Comment: "
 	output += m.Comment
@@ -105,7 +116,10 @@ func initializeAllMeetings() {
 	//Move meetings into the map
 	for i, meetings := range scheduled.Meetings {
 		tempt := time.Now()
-		tempt, err = time.Parse(timeStamp, meetings.DateTime)
+		tZone := meetings.DateTime
+		tZoneS := strings.Split(tZone, " ")
+		tZone = tZoneS[len(tZoneS)-1]
+		tempt, err = time.ParseInLocation(timeStamp, meetings.DateTime, timeZones[tZone])
 		if err != nil {
 			fmt.Println(err)
 		}
