@@ -1,4 +1,4 @@
-package RpgManager
+package main
 
 import (
 	"fmt"
