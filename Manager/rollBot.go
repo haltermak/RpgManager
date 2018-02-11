@@ -486,7 +486,7 @@ func formatResults(dice []int, rT int) string {
 					output += "~~" + strconv.Itoa(die) + "~~"
 				}
 			}
-			output += " "
+			output += ","
 		}
 		output = strings.TrimSuffix(output, " ")
 		output += "]"
