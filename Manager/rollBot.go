@@ -322,6 +322,7 @@ func rollDice(rT int, rounding string) ([]int, int, int, error) {
 }
 
 func rollBasicDice(numDice, typeDice int) ([]int, int, error) {
+	fmt.Println(numDice, typeDice)
 	var err error
 	err = nil
 	defer func() {
@@ -333,6 +334,7 @@ func rollBasicDice(numDice, typeDice int) ([]int, int, error) {
 	for i, _ := range resultsOfDice {
 		resultsOfDice[i] = randSource.Intn(typeDice) + 1
 	}
+	fmt.Println(numDice, typeDice)
 	total := 0
 	for _, currentDie := range resultsOfDice {
 		total += currentDie

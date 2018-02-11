@@ -33,7 +33,6 @@ func main() {
 				fmt.Println(rollstring)
 			}
 		}
-
 		if strings.HasPrefix(input, "/addMeeting ") {
 			meetingString := strings.TrimPrefix(input, "/addMeeting ")
 			err, temp := RpgManager.AddMeeting(meetingString)

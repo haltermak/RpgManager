@@ -26,7 +26,6 @@ const timeStamp = "Jan _2 2006, 15:04 MST"
 func StartMeetings() {
 	allMeetings = make(map[int]Meeting)
 	timeZones = make(map[string]*time.Location)
-	fmt.Println("Building?")
 	var err error
 	timeZones["PST"], err = time.LoadLocation("America/Los_Angeles")
 	timeZones["PDT"], err = time.LoadLocation("America/Los_Angeles")

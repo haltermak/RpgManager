@@ -36,6 +36,7 @@ func main() {
 
 	//Initialize the meetings list
 	RpgManager.StartMeetings()
+	RpgManager.InitDice()
 
 	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(messageCreate)
