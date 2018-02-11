@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/haltermak/sFlags"
 	"io/ioutil"
 	"log"
 	"os"
@@ -25,10 +26,14 @@ const timeStamp = "Jan _2 2006, 15:04 MST"
 func StartMeetings() {
 	allMeetings = make(map[int]Meeting)
 	timeZones = make(map[string]*time.Location)
+	fmt.Println("Building?")
 	var err error
 	timeZones["PST"], err = time.LoadLocation("America/Los_Angeles")
-	timeZones["CEST"], err = time.LoadLocation("Europe/Berlin")
+	timeZones["PDT"], err = time.LoadLocation("America/Los_Angeles")
+	timeZones["CET"], err = time.LoadLocation("Europe/Berlin")
 	timeZones["MST"], err = time.LoadLocation("America/Phoenix")
+	timeZones["MDT"], err = time.LoadLocation("America/Phoenix")
+	timeZones["CEST"], err = time.LoadLocation("Europe/Berlin")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -55,18 +60,31 @@ type Meeting struct {
 	Comment  string
 }
 
-//function prints all information about every meeting
-func (m Meeting) print() {
-	fmt.Println(m.DateTime.Format(timeStamp))
-	fmt.Println(m.Comment)
-}
-
 func (m Meeting) toString() string {
 	output := "Meeting Label: " + m.Label + "\n"
 	output += "Meeting occurs/occured on: "
 	//output += m.DateTime.Format(timeStamp)
 	output += m.DateTime.UTC().Format(timeStamp)
-	fmt.Println(m.DateTime.Zone())
+	output += "\n"
+	output += "Comment: "
+	output += m.Comment
+	output += "\n"
+	return output
+}
+
+func (m Meeting) toStringInLoc(loc string) string {
+	output := "Meeting Label: " + m.Label + "\n"
+	output += "Meeting occurs/occured on: "
+	//output += m.DateTime.Format(timeStamp)
+	if loc != "" {
+		if timeZones[loc] != nil {
+			output += m.DateTime.In(timeZones[loc]).Format(timeStamp)
+		} else {
+			output += m.DateTime.UTC().Format(timeStamp)
+		}
+	} else {
+		output += m.DateTime.UTC().Format(timeStamp)
+	}
 	output += "\n"
 	output += "Comment: "
 	output += m.Comment
@@ -75,20 +93,19 @@ func (m Meeting) toString() string {
 }
 
 //function that returns an array of time values representing each meeting
-func NextMeeting() string {
+func NextMeeting(command string) string {
+	initializeAllMeetings()
+	_, flags, err := sFlags.CreateFlags(command)
+	if err != nil {
+		fmt.Println(err)
+	}
 	//get the time now to use in deciding which meeting is soonest
 	//timeNow := time.Now()
 
 	//search through structs
 	sortMeetingsByTime()
-	/*
-		allMeetings[2].print()
-		allMeetings[1].print()
-		fmt.Println(allMeetings[2].DateTime.Format(timeStamp))
-		fmt.Println(allMeetings[1].DateTime.Format(timeStamp))
-		fmt.Println(allMeetings[2].DateTime.Sub(allMeetings[1].DateTime))*/
-	//print one with time-now the smallest
-	return searchMeetingsForSoonest().toString()
+	return searchMeetingsForSoonest().toStringInLoc(flags["-tz"])
+
 }
 
 func initializeAllMeetings() {
@@ -126,13 +143,14 @@ func initializeAllMeetings() {
 		temp := Meeting{meetings.Label, i, tempt, meetings.Comment} //creates a temporary Meeting using each the meetings data
 		allMeetings[i] = temp                                       //assigns temporary meeting to the key in the map
 	}
+	sortMeetingsByTime()
 
 }
 
 //function that searches allMeetings for the soonest one and returns it
 func searchMeetingsForSoonest() Meeting {
 	for _, v := range allMeetings {
-		if time.Until(v.DateTime) > 0 {
+		if time.Until(v.DateTime) > 0 && v.Index >= 0 {
 			return v
 			break
 		}
@@ -166,14 +184,20 @@ func sortMeetingsByTime() {
 	}
 }
 
-func ShowAllMeetings() string {
+func ShowAllMeetings(command string) string {
+	initializeAllMeetings()
+	_, flags, err := sFlags.CreateFlags(command)
+	if err != nil {
+		fmt.Println(err)
+	}
 	var output string
+	fmt.Println(flags["-tz"])
 	for k, v := range allMeetings {
-		if k != 0 {
-			output += v.toString()
+		if k >= 0 {
+			output += v.toStringInLoc(flags["-tz"])
 			output += "Index: "
 			output += strconv.Itoa(k)
-			output += "\n\n"
+			output += "\n"
 		}
 	}
 	return output
@@ -185,8 +209,9 @@ func AddMeeting(meeting string) (error, string) {
 	prevNumMeetings := len(allMeetings)
 	newNumMeetings := prevNumMeetings + 1
 	tokens := strings.Split(meeting, "; ") //Splits a string into the parts needed to make a meeting
-	fmt.Println(len(tokens))
-	tempt, err := time.Parse(timeStamp, tokens[1]) //turns the time string into a time object
+	extraTokens := strings.Fields(tokens[1])
+	tZone := extraTokens[len(extraTokens)-1]
+	tempt, err := time.ParseInLocation(timeStamp, tokens[1], timeZones[tZone]) //turns the time string into a time object
 	if err == nil {
 		temp = Meeting{tokens[0], newNumMeetings, tempt, tokens[2]} //creates a temporary meet object according to the string pieces
 		allMeetings[newNumMeetings-1] = temp
@@ -194,6 +219,7 @@ func AddMeeting(meeting string) (error, string) {
 	} else {
 		fmt.Println(err)
 	}
+	sortMeetingsByTime()
 	writeMapToFile()
 	return err, temp.toString()
 }
@@ -248,6 +274,9 @@ func mapBackToStruct() MeetingImport {
 
 func DeleteMeeting(idx int) (string, error) {
 	temp := allMeetings[idx]
+	fmt.Println(temp.toString())
+	fmt.Println("Temp Index:", temp.Index)
+	fmt.Println("Deletion Index: ", idx)
 	if temp.Label == "" {
 		return "", errors.New("Unable to find meeting with given index")
 	} else {
@@ -257,5 +286,6 @@ func DeleteMeeting(idx int) (string, error) {
 		return "", errors.New("Unable to delete meeting")
 	}
 	writeMapToFile()
+	sortMeetingsByTime()
 	return temp.toString(), nil
 }

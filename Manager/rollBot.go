@@ -6,6 +6,7 @@ import (
 	"time"
 	//"os"
 	"errors"
+	"github.com/haltermak/sFlags"
 	"math"
 	"sort"
 	"strconv"
@@ -24,7 +25,17 @@ var compoperators = [...]string{">>", ">=", "<<", "<=", "=="}
 var operators = [...]string{"+", "-", "÷", "/", "*", "x", "X"}
 var minMaxFlag, roundFlag, keepFlag string
 
-//Function should be called with an argument feeding it a string to roll in the format i*'d'i*
+func InitDice() {
+	timeSource = rand.NewSource(time.Now().UnixNano())
+	randSource = rand.New(timeSource)
+}
+
+func InitDiceWithSource(s *rand.Rand) {
+	randSource = s
+}
+
+//Function should be called with an argument feeding it a string to roll in the format xdy, where x is the number of dice and y is the number of sides on the dice. It can be followed with various flags,
+//or comparisons and modifiers.
 func RollDice(dice string) (string, error) {
 	//This block of code turns a command line argument into two ints, one being the number of dice thrown, and the other being the type of dice
 	clearFlags()
@@ -44,8 +55,6 @@ func RollDice(dice string) (string, error) {
 		return "Fuck you", nil
 	}
 	//Create a source of random numbers seeded to the current time
-	timeSource = rand.NewSource(time.Now().UnixNano())
-	randSource = rand.New(timeSource)
 
 	var results []int
 	results, total, successes, err = rollDice(rollType, roundFlag)
@@ -56,6 +65,38 @@ func RollDice(dice string) (string, error) {
 	//fmt.Println(results)
 	//fmt.Println(total)
 	//fmt.Println(successes)
+}
+
+/**
+ * function should accept string of format "/roll xdy(==z/+o) and flags" then return the string of the dice roll, along with the successes, total, and error
+ */
+func RollDiceRedo(dice string) (string, int, int, error) {
+	err := clearFlags()
+	if err != nil {
+		fmt.Println("error clearing flags")
+	}
+	command, flags, err := sFlags.CreateFlags(dice)
+	parseFlags(flags)
+	rollType, diceSlice, err := inputProofer(command)
+	err = assignMeaningToDiceSlice(diceSlice, rollType)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	if numDice > 1000 {
+		return "That's too many dice", 0, 0, nil
+	}
+	if typeDice > 1000 {
+		return "Golf balls are not dice", 0, 0, nil
+	}
+	if numDice+typeDice > 1000 {
+		return "Fuck you", 0, 0, nil
+	}
+	var results []int
+	results, total, successes, err = rollDice(rollType, roundFlag)
+	if err != nil {
+		return "DAMNIT", 0, 0, err
+	}
+	return formatResults(results, rollType), successes, total, err
 }
 
 /* function to proof the input string's format, then split it up and return an option that indicates what kind of roll should be happening */
@@ -121,7 +162,11 @@ func inputProofer(diceString string) (int, []string, error) {
 			return 5, diceSlice, err
 		}
 	} else if containsComp == 1 && containsMod == 0 {
-		return 2, diceSlice, err
+		if keepFlag != "" {
+			return 6, diceSlice, err
+		} else {
+			return 2, diceSlice, err
+		}
 	} else if containsComp == 0 && containsMod == 1 {
 		return 3, diceSlice, err
 	} else {
@@ -149,11 +194,30 @@ func stripFlags(s string) (string, error) {
 	return fullSlice[0], err
 }
 
+func parseFlags(f map[string]string) {
+	minMaxFlag = f["-m"]
+	roundFlag = f["-rn"]
+	interKeep := f["-k"]
+	keepFlag = string(interKeep[0])
+	tempString := string(interKeep[1:])
+	var err error
+	keepDice, err = strconv.Atoi(tempString)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
 func clearFlags() error {
 	var err error
 	keepFlag = ""
 	minMaxFlag = ""
 	roundFlag = ""
+	numDice = 0
+	keepDice = 0
+	comparand = 0
+	operand = 0
+	successes = 0
+	total = 0
 	return err
 }
 
@@ -182,6 +246,11 @@ func assignMeaningToDiceSlice(diceS []string, rT int) error {
 	} else if rT == 5 {
 		numDice, err = strconv.Atoi(diceS[0])
 		typeDice, err = strconv.Atoi(diceS[1])
+	} else if rT == 6 {
+		numDice, err = strconv.Atoi(diceS[0])
+		typeDice, err = strconv.Atoi(diceS[1])
+		comparator = diceS[2]
+		comparand, err = strconv.Atoi(diceS[3])
 	}
 	return err
 }
@@ -241,6 +310,11 @@ func rollDice(rT int, rounding string) ([]int, int, int, error) {
 	case 5:
 		diceResults, total, err := rollBasicDice(numDice, typeDice)
 		return diceResults, total, 0, err
+	case 6:
+		diceResults, total, err := rollBasicDice(numDice, typeDice)
+		fmt.Println(diceResults, comparator, comparand)
+		successes = determineSuccesses(diceResults, comparator, comparand)
+		return diceResults, total, successes, err
 	default:
 		return nil, 0, 0, errors.New("Invalid roll type")
 	}
@@ -266,7 +340,7 @@ func rollBasicDice(numDice, typeDice int) ([]int, int, error) {
 	if keepFlag == "" {
 		return resultsOfDice, total, err
 	} else {
-		if keepFlag == "h" {
+		if keepFlag == "l" {
 			sort.Ints(resultsOfDice)
 		} else {
 			sort.Sort(sort.Reverse(sort.IntSlice(resultsOfDice)))
@@ -276,6 +350,7 @@ func rollBasicDice(numDice, typeDice int) ([]int, int, error) {
 }
 
 func determineSuccesses(dice []int, comp string, comd int) int {
+	fmt.Println(dice, comp, comd)
 	success := 0
 	switch comp {
 	case ">=":
@@ -309,6 +384,18 @@ func determineSuccesses(dice []int, comp string, comd int) int {
 			}
 		}
 	}
+	if keepFlag != "" {
+		if keepFlag == "h" {
+			if success > keepDice {
+				success = keepDice
+			}
+		} else if keepFlag == "l" {
+			if success > keepDice {
+				success = keepDice
+			}
+		}
+	}
+	fmt.Println(success)
 	return success
 }
 
@@ -364,7 +451,6 @@ func formatResults(dice []int, rT int) string {
 			}
 			output += numbString
 			output += ","
-			fmt.Println(output)
 		}
 		output = strings.TrimSuffix(output, ",")
 		output += "]"
@@ -404,7 +490,58 @@ func formatResults(dice []int, rT int) string {
 		}
 		output = strings.TrimSuffix(output, " ")
 		output += "]"
+	case 6:
+		output += "["
+		successCounter := 0
+		for _, die := range dice {
+			var numbString string
+			switch comparator {
+			case ">=":
+				if die < comparand || successCounter >= keepDice {
+					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
+					numbString = strconv.Itoa(die)
+					successCounter++
+				}
+			case ">>":
+				if die <= comparand || successCounter >= keepDice {
+					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
+					numbString = strconv.Itoa(die)
+					successCounter++
+				}
+			case "<=":
+				if die > comparand || successCounter >= keepDice {
+					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
+					numbString = strconv.Itoa(die)
+					successCounter++
+				}
+			case "<<":
+				if die >= comparand || successCounter >= keepDice {
+					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
+					numbString = strconv.Itoa(die)
+					successCounter++
+				}
+			case "==":
+				if die != comparand || successCounter >= keepDice {
+					numbString = "~~" + strconv.Itoa(die) + "~~"
+				} else {
+					numbString = strconv.Itoa(die)
+					successCounter++
+				}
+			}
+			output += numbString
+			output += ","
+		}
+		output = strings.TrimSuffix(output, ",")
+		output += "]"
+		output += " giving "
+		output += strconv.Itoa(successes)
+		output += " successes"
 	}
+
 	afterEquals := ""
 	if strings.Contains(output, "=") {
 		temp := strings.Split(output, "=")

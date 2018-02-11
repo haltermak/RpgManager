@@ -22,7 +22,6 @@ func init() {
 }
 
 func main() {
-
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
@@ -96,9 +95,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 	if strings.HasPrefix(m.Content, "/nextMeeting") {
-		s.ChannelMessageSend(m.ChannelID, RpgManager.NextMeeting())
+		s.ChannelMessageSend(m.ChannelID, RpgManager.NextMeeting(m.Content))
 	}
-	if strings.HasPrefix(m.Content, "/addMeeting ") && m.Author.Username == "CaptainJesus" {
+	if strings.HasPrefix(m.Content, "/addMeeting ") {
 		meetingString := strings.TrimPrefix(m.Content, "/addMeeting ")
 		err, temp := RpgManager.AddMeeting(meetingString)
 		if err != nil {
@@ -107,7 +106,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, temp)
 		}
 	}
-	if strings.HasPrefix(m.Content, "/removeMeeting ") && m.Author.Username == "CaptainJesus" {
+	if strings.HasPrefix(m.Content, "/removeMeeting ") {
 		meetingString := strings.TrimPrefix(m.Content, "/removeMeeting ")
 		meetingString = strings.Replace(meetingString, " ", "", -1)
 		meetingIdx, _ := strconv.Atoi(meetingString)
@@ -118,7 +117,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, temp)
 		}
 	}
-	if strings.HasPrefix(m.Content, "/allMeetings") && m.Author.Username == "CaptainJesus" {
-		s.ChannelMessageSend(m.ChannelID, RpgManager.ShowAllMeetings())
+	if strings.HasPrefix(m.Content, "/allMeetings") {
+		s.ChannelMessageSend(m.ChannelID, RpgManager.ShowAllMeetings(m.Content))
+	}
+
+	if strings.HasPrefix(m.Content, "/help") {
+		s.ChannelMessageSend(m.ChannelID, "1. /roll or /r to roll dice\n2. /allMeetings to display all saved meetings. Use -tz and a time zone to specifiy a time zone\n3. /addMeeting to add a meeting using the string you provide\n/nextMeeting to display upcoming meeting. Again use -tz flag.\n/removeMeeting to delete a meeting with the given index")
 	}
 }

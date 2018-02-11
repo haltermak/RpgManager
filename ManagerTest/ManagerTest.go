@@ -12,8 +12,10 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	RpgManager.StartMeetings()
+	RpgManager.InitDice()
 	for {
 		input, _ := reader.ReadString('\n')
+		input = strings.Replace(input, "\n", "", -1)
 		if strings.HasPrefix(input, "/shutDown") {
 			os.Exit(0)
 		}
@@ -31,9 +33,7 @@ func main() {
 				fmt.Println(rollstring)
 			}
 		}
-		if strings.HasPrefix(input, "/nextMeeting") {
-			fmt.Println(RpgManager.NextMeeting())
-		}
+
 		if strings.HasPrefix(input, "/addMeeting ") {
 			meetingString := strings.TrimPrefix(input, "/addMeeting ")
 			err, temp := RpgManager.AddMeeting(meetingString)
@@ -46,16 +46,24 @@ func main() {
 		if strings.HasPrefix(input, "/removeMeeting ") {
 			meetingString := strings.TrimPrefix(input, "/removeMeeting ")
 			meetingString = strings.Replace(meetingString, " ", "", -1)
-			meetingIdx, _ := strconv.Atoi(meetingString)
+			meetingIdx, err := strconv.Atoi(meetingString)
+			if err != nil {
+				fmt.Println(err)
+			}
 			temp, err := RpgManager.DeleteMeeting(meetingIdx)
 			if err != nil {
-				fmt.Println("Error processing meeting")
+				fmt.Println(err)
 			} else {
 				fmt.Println(temp)
 			}
 		}
 		if strings.HasPrefix(input, "/allMeetings") {
-			fmt.Println(RpgManager.ShowAllMeetings())
+			fmt.Println(input)
+			fmt.Println(RpgManager.ShowAllMeetings(input))
+		}
+		if strings.HasPrefix(input, "/nextMeeting") {
+			fmt.Println(input)
+			fmt.Println(RpgManager.NextMeeting(input))
 		}
 	}
 }
