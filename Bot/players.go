@@ -7,21 +7,26 @@ import (
 	"github.com/haltermak/sFlags"
 	"math/rand"
 	"strings"
-	"time"
+	//"time"
 )
 
 var timeSource rand.Source
 var randSource *rand.Rand
+var gameMap map[int]Game
 
 type Gametype struct {
 	name string
 	roll func(string) (string, error)
 }
 
-func initGameTypes() {
+/*func initGameTypes() {
 	Shadowrun := Gametype{"Shadowrun", RollShadowrunDice}
 	timeSource = rand.NewSource(time.Now().UnixNano())
 	randSource = rand.New(timeSource)
+}*/
+
+func initGames() {
+	gameMap = make(map[int]Game)
 }
 
 /**
@@ -55,7 +60,7 @@ type Game struct {
 	nonAdminPlayers map[string]*Player
 	gameName        string
 	guild           discordgo.Guild
-	gameAdmin       Player
+	gameAdmin       *Player
 	id              int
 	Gametype
 }
@@ -64,21 +69,26 @@ type Game struct {
  * Function should take a string command and create a new Game object
  * @param command: a string with the format /newGame -gN s -gT s -nP x -p1 s -p2 s -p3... and so forth, where -gT is a string representing game type, x is the number of players, and each -px is a call to make a new player using s
  */
-func NewGame(command string) *Game {
-	_, flags, err := sFlags.CreateFlags(command)
+func NewGame(m *discordgo.MessageCreate) (*Game, error) {
+	_, flags, err := sFlags.CreateFlags(m.Content)
 	newgame := new(Game)
-	newgame.gameAdmin = newPlayer()
+	newgame.gameAdmin = NewPlayer("/create -pN " + m.Author.Username + " -a")
 	newgame.gameName = flags["-gN"]
 	newgame.id = randSource.Int()
-	numPlayers = sFlags.FlagToInt(flags, "-nP")
+	numPlayers, err := sFlags.FlagToInt(flags, "-nP")
 	pCounter := 0
-	players := make([]string, 0, numPlayers)
-	for k, p := range flags {
-		if strings.HasPrefix(k, "-p") {
-			players[pCounter] = p
+	playerNames := make([]string, numPlayers)
+	for _, p := range flags {
+		if strings.HasPrefix(p, "-p") {
+			playerNames[pCounter] = flags[p]
+			pCounter++
 		}
 	}
-	newgame.nonAdminPlayers
+	for _, name := range playerNames {
+		newgame.nonAdminPlayers[name] = NewPlayer(name)
+	}
+	gameMap[newgame.id] = *newgame
+	return newgame, err
 }
 
 /**
@@ -89,22 +99,23 @@ type Player struct {
 	name     string
 	admin    bool
 	entities map[string]Entity
+	game     *Game
 }
 
 /**
  * Takes a command string and returns a player with hopefully the correct information
  * @param: string of format /newPlayer -pN s -a b
  */
-func NewPlayer(command string) *Player {
-	_, flags, err := sFlags.CreateFlags(command)
+func NewPlayer(name string) *Player {
 	p := new(Player)
-	p.name = flags["-pN"]
-	p.admin, err = sFlags.FlagToBool(flags, ["-a"])
-	return *p
+	p.name = name
+	return p
 }
 
-func (p Player) associatePlayer (m *discordgo.MessageCreate) {
-	p.pUser = m.Author
+func (p Player) associatePlayer(gameID int, m *discordgo.MessageCreate) {
+	p.pUser = *m.Author
+	bob := gameMap[gameID]
+	p.game = &bob
 }
 
 /**
