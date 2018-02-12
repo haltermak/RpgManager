@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/haltermak/RpgManager/Manager"
@@ -70,7 +71,7 @@ type Game struct {
 	JoinedPlayers   int
 }
 
-func (g Game) addPlayer(m *discordgo.MessageCreate) (string, error) {
+func (g *Game) addPlayer(m *discordgo.MessageCreate) (string, error) {
 	_, flags, err := sFlags.CreateFlags(m.Content)
 	if err != nil {
 		fmt.Println(err)
@@ -98,6 +99,9 @@ func NewGame(m *discordgo.MessageCreate) (*Game, string, error) {
 	fmt.Println(flags)
 	for k, p := range flags {
 		if strings.HasPrefix(k, "-p") {
+			if pCounter >= len(playerNames) {
+				return new(Game), "", errors.New("Too many player names for the indicated number of players. Check input")
+			}
 			playerNames[pCounter] = p
 			pCounter++
 		}
@@ -131,7 +135,7 @@ func NewPlayer(Name string) *Player {
 	return p
 }
 
-func (p Player) AssociatePlayer(m *discordgo.MessageCreate) (string, error) {
+func (p *Player) AssociatePlayer(m *discordgo.MessageCreate) (string, error) {
 	_, flags, err := sFlags.CreateFlags(m.Content)
 	if err != nil {
 		fmt.Println(err)
@@ -144,6 +148,7 @@ func (p Player) AssociatePlayer(m *discordgo.MessageCreate) (string, error) {
 	}
 	bob := gameMap[gameIDint]
 	p.Game = &bob
+	fmt.Println(p)
 	return m.Author.Username + "has joined Game " + strconv.Itoa(p.Game.Id), err
 }
 

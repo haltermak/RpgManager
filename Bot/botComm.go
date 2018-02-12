@@ -20,9 +20,23 @@ var (
 	Token string
 )
 
+var gamesFile *os.File
+
+const gamesFileName = "gamesDB.json"
+
 func init() {
 	flag.StringVar(&Token, "t", "", "Bot Token")
 	flag.Parse()
+	var err error
+	gamesFile, err = os.Open("gamesDB.json")
+	if err != nil {
+		gamesFile, err = os.Create("gamesDB.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		ioutil.WriteFile("gamesDB.json", []byte("{\n    }"), 0666)
+	}
+	gamesFile.Close()
 }
 
 func main() {
@@ -37,15 +51,6 @@ func main() {
 			dg.ChannelMessageSend("407899430902038541", "Bot killing itself")
 		}
 	}()
-
-	gamesFile, err := os.Open("gamesDB.json")
-	if err != nil {
-		gamesFile, err = os.Create("gamesDB.json")
-		if err != nil {
-			log.Fatal(err)
-		}
-		ioutil.WriteFile("gamesDB.json", []byte("{\n    }"), 0666)
-	}
 
 	//Initialize the meetings list
 	RpgManager.StartMeetings()
@@ -71,6 +76,7 @@ func main() {
 
 	// Cleanly close down the Discord session.
 	//dg.ChannelMessageSend("407899430902038541", "Bot going to sleep")
+	writeGameMapToFile(gamesFileName, gameMap)
 	gamesFile.Close()
 	dg.Close()
 }
@@ -148,7 +154,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		gameMap[tempGame.Id] = *tempGame
 		s.ChannelMessageSend(m.ChannelID, "Game created with ID: "+response)
-		writeGameMapToFile("gamesDb.json", gameMap)
+		writeGameMapToFile(gamesFileName, gameMap)
 	}
 
 	if strings.HasPrefix(m.Content, "/joinGame") {
@@ -165,6 +171,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println(err)
 		}
 		s.ChannelMessageSend(m.ChannelID, response)
+		writeGameMapToFile(gamesFileName, gameMap)
 	}
 }
 
@@ -172,9 +179,10 @@ func writeGameMapToFile(filename string, m map[int]Game) {
 	tempbytes, err := json.MarshalIndent(m, "", "    ")
 	tempbytes = []byte(strings.Replace(string(tempbytes), "},", "},\n", -1))
 	byteSlice := []byte(tempbytes)
+	file, err := os.OpenFile(filename, os.O_WRONLY, 0666)
 	_, err = file.Write(byteSlice)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
-
+	file.Close()
 }
