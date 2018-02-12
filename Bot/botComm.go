@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/haltermak/RpgManager/Manager"
+	"github.com/haltermak/sFlags"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -34,9 +38,19 @@ func main() {
 		}
 	}()
 
+	gamesFile, err := os.Open("gamesDB.json")
+	if err != nil {
+		gamesFile, err = os.Create("gamesDB.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		ioutil.WriteFile("gamesDB.json", []byte("{\n    }"), 0666)
+	}
+
 	//Initialize the meetings list
 	RpgManager.StartMeetings()
 	RpgManager.InitDice()
+	initGames()
 
 	// Register the messageCreate func as a callback for MessageCreate events.
 	dg.AddHandler(messageCreate)
@@ -57,6 +71,7 @@ func main() {
 
 	// Cleanly close down the Discord session.
 	//dg.ChannelMessageSend("407899430902038541", "Bot going to sleep")
+	gamesFile.Close()
 	dg.Close()
 }
 
@@ -125,4 +140,41 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if strings.HasPrefix(m.Content, "/help") {
 		s.ChannelMessageSend(m.ChannelID, "1. /roll or /r to roll dice\n2. /allMeetings to display all saved meetings. Use -tz and a time zone to specifiy a time zone\n3. /addMeeting to add a meeting using the string you provide\n/nextMeeting to display upcoming meeting. Again use -tz flag.\n/removeMeeting to delete a meeting with the given index")
 	}
+
+	if strings.HasPrefix(m.Content, "/createGame") {
+		tempGame, response, err := NewGame(m)
+		if err != nil {
+			fmt.Println(err)
+		}
+		gameMap[tempGame.Id] = *tempGame
+		s.ChannelMessageSend(m.ChannelID, "Game created with ID: "+response)
+		writeGameMapToFile("gamesDb.json", gameMap)
+	}
+
+	if strings.HasPrefix(m.Content, "/joinGame") {
+		_, flags, err := sFlags.CreateFlags(m.Content)
+		if err != nil {
+			fmt.Println(err)
+		}
+		gameID, err := sFlags.FlagToInt(flags, "-gID")
+		if err != nil {
+			fmt.Println(err)
+		}
+		response, err := gameMap[gameID].addPlayer(m)
+		if err != nil {
+			fmt.Println(err)
+		}
+		s.ChannelMessageSend(m.ChannelID, response)
+	}
+}
+
+func writeGameMapToFile(filename string, m map[int]Game) {
+	tempbytes, err := json.MarshalIndent(m, "", "    ")
+	tempbytes = []byte(strings.Replace(string(tempbytes), "},", "},\n", -1))
+	byteSlice := []byte(tempbytes)
+	_, err = file.Write(byteSlice)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
